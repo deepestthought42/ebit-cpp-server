@@ -6,8 +6,6 @@
 #include <stdio.h>
 #include "gtest/gtest.h"
 
-#include "../src/capi.h"
-#include "fields.h"
 
 /**
 Template unit test case fixture class. Make a copy of this.
@@ -15,17 +13,17 @@ Template unit test case fixture class. Make a copy of this.
 @author Alex Tsui
 @date 2011-12-22
 */
-class FooTest : public ::testing::Test
+class ODETest : public ::testing::Test
 {
 protected:
     // You can remove any or all of the following functions if its body
     // is empty.
 
-    FooTest() {
+    ODETest() {
         // You can do set-up work for each test here.
     }
 
-    virtual ~FooTest() {
+    virtual ~ODETest() {
         // You can do clean-up work that doesn't throw exceptions here.
     }
 
@@ -46,13 +44,11 @@ protected:
 };
 
 // Tests that Foo does Xyz.
-TEST_F(FooTest, AllocAndFreeKonig) 
+TEST_F(ODETest, ReadProto) 
 {}
 
 
 
-TEST_F(FooTest, FitExample) 
-{}
 
 
 #pragma clang diagnostic pop

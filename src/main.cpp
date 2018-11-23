@@ -1,13 +1,13 @@
 
 /*
- Copyright 2010-2012 Karsten Ahnert
- Copyright 2011-2013 Mario Mulansky
- Copyright 2013 Pascal Germroth
+  Copyright 2010-2012 Karsten Ahnert
+  Copyright 2011-2013 Mario Mulansky
+  Copyright 2013 Pascal Germroth
 
- Distributed under the Boost Software License, Version 1.0.
- (See accompanying file LICENSE_1_0.txt or
- copy at http://www.boost.org/LICENSE_1_0.txt)
- */
+  Distributed under the Boost Software License, Version 1.0.
+  (See accompanying file LICENSE_1_0.txt or
+  copy at http://www.boost.org/LICENSE_1_0.txt)
+*/
 
 
 #include <iostream>
@@ -45,10 +45,10 @@ public:
     harm_osc( double gam ) : m_gam(gam) { }
 
     void operator() ( const state_type &x , state_type &dxdt , const double /* t */ )
-    {
-        dxdt[0] = x[1];
-        dxdt[1] = -x[0] - m_gam*x[1];
-    }
+	{
+	    dxdt[0] = x[1];
+	    dxdt[1] = -x[0] - m_gam*x[1];
+	}
 };
 //]
 
@@ -63,22 +63,22 @@ struct push_back_state_and_time
     std::vector< double >& m_times;
 
     push_back_state_and_time( std::vector< state_type > &states , std::vector< double > &times )
-    : m_states( states ) , m_times( times ) { }
+	: m_states( states ) , m_times( times ) { }
 
     void operator()( const state_type &x , double t )
-    {
-        m_states.push_back( x );
-        m_times.push_back( t );
-    }
+	{
+	    m_states.push_back( x );
+	    m_times.push_back( t );
+	}
 };
 //]
 
 struct write_state
 {
     void operator()( const state_type &x ) const
-    {
-        std::cout << x[0] << "\t" << x[1] << "\n";
-    }
+	{
+	    std::cout << x[0] << "\t" << x[1] << "\n";
+	}
 };
 
 
@@ -98,7 +98,7 @@ int main(int /* argc */ , char** /* argv */ )
 
     //[ integration
     size_t steps = integrate( harmonic_oscillator ,
-            x , 0.0 , 10.0 , 0.1 );
+			      x , 0.0 , 10.0 , 0.1 );
     //]
 
 
@@ -106,7 +106,7 @@ int main(int /* argc */ , char** /* argv */ )
     //[ integration_class
     harm_osc ho(0.15);
     steps = integrate( ho ,
-            x , 0.0 , 10.0 , 0.1 );
+		       x , 0.0 , 10.0 , 0.1 );
     //]
 
 
@@ -115,8 +115,8 @@ int main(int /* argc */ , char** /* argv */ )
     vector<double> times;
 
     steps = integrate( harmonic_oscillator ,
-            x , 0.0 , 10.0 , 0.1 ,
-            push_back_state_and_time( x_vec , times ) );
+		       x , 0.0 , 10.0 , 0.1 ,
+		       push_back_state_and_time( x_vec , times ) );
 
     /* output */
     for( size_t i=0; i<=steps; i++ )
@@ -150,10 +150,10 @@ int main(int /* argc */ , char** /* argv */ )
 
 
     {
-    double abs_err = 1.0e-10 , rel_err = 1.0e-6 , a_x = 1.0 , a_dxdt = 1.0;
-    controlled_stepper_type controlled_stepper( 
-        default_error_checker< double , range_algebra , default_operations >( abs_err , rel_err , a_x , a_dxdt ) );
-    integrate_adaptive( controlled_stepper , harmonic_oscillator , x , 0.0 , 10.0 , 0.01 );
+	double abs_err = 1.0e-10 , rel_err = 1.0e-6 , a_x = 1.0 , a_dxdt = 1.0;
+	controlled_stepper_type controlled_stepper( 
+	    default_error_checker< double , range_algebra , default_operations >( abs_err , rel_err , a_x , a_dxdt ) );
+	integrate_adaptive( controlled_stepper , harmonic_oscillator , x , 0.0 , 10.0 , 0.01 );
 
     }
 
@@ -165,12 +165,12 @@ int main(int /* argc */ , char** /* argv */ )
     integrate_adaptive( make_controlled( 1.0e-10 , 1.0e-6 , error_stepper_type() ) , 
                         harmonic_oscillator , x , 0.0 , 10.0 , 0.01 );
 
-    #ifdef BOOST_NUMERIC_ODEINT_CXX11
+#ifdef BOOST_NUMERIC_ODEINT_CXX11
     {
-    runge_kutta4< state_type > stepper;
-    integrate_const( stepper , []( const state_type &x , state_type &dxdt , double t ) {
-            dxdt[0] = x[1]; dxdt[1] = -x[0] - gam*x[1]; }
-        , x , 0.0 , 10.0 , 0.01 );
+	runge_kutta4< state_type > stepper;
+	integrate_const( stepper , []( const state_type &x , state_type &dxdt , double t ) {
+				       dxdt[0] = x[1]; dxdt[1] = -x[0] - gam*x[1]; }
+	    , x , 0.0 , 10.0 , 0.01 );
     }
     
     
@@ -179,7 +179,7 @@ int main(int /* argc */ , char** /* argv */ )
                    make_const_step_time_iterator_end( stepper , harmonic_oscillator, x ) ,
                    []( std::pair< const state_type & , const double & > x ) {
                        cout << x.second << " " << x.first[0] << " " << x.first[1] << "\n"; } );
-    #endif
+#endif
     
     
 
