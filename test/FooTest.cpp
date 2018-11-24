@@ -4,8 +4,9 @@
 
 #include <iostream>
 #include <stdio.h>
+#include <fstream>
 #include "gtest/gtest.h"
-
+#include "ode.h"
 
 /**
 Template unit test case fixture class. Make a copy of this.
@@ -45,7 +46,13 @@ protected:
 
 // Tests that Foo does Xyz.
 TEST_F(ODETest, ReadProto) 
-{}
+{
+    std::ifstream in("/home/renee/tmp/leigh_talk.proto");
+    std::string contents((std::istreambuf_iterator<char>(in)), 
+			 std::istreambuf_iterator<char>());
+
+    solve_ode(contents.c_str(), contents.length(), nullptr, nullptr);
+}
 
 
 

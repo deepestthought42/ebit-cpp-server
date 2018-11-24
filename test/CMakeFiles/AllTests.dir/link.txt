@@ -1,1 +1,0 @@
-/usr/bin/c++    -rdynamic CMakeFiles/AllTests.dir/AllTests.cpp.o CMakeFiles/AllTests.dir/FooTest.cpp.o  -o AllTests -Wl,-rpath,/home/renee/phd/src/ebit-evolution.project/ebit-cpp-server/src ../src/libebit_cpp_ode.so -lgtest 
