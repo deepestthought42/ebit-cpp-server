@@ -1,3 +1,7 @@
+
+SET(CMAKE_C_COMPILER /usr/bin/c++)
+SET(CMAKE_CXX_COMPILER /usr/bin/c++)
+
 message( STATUS ${CMAKE_SOURCE_DIR} )
 
 include_directories( ${CMAKE_SOURCE_DIR}/src )

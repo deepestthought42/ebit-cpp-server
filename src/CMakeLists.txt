@@ -1,3 +1,5 @@
+SET(CMAKE_C_COMPILER /usr/bin/c++)
+SET(CMAKE_CXX_COMPILER /usr/bin/c++)
 
 
 PROTOBUF_GENERATE_CPP(

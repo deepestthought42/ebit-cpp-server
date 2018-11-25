@@ -3,8 +3,10 @@ project( ebit_cpp_ode )
 
 add_definitions( -std=c++11 -ggdb -O2 -Wno-c++98-compat -Wno-padded)
 
+
 # Set BOOST_ROOT environment variable to point to your local Boost dir.
 SET(Boost_USE_STATIC_LIBS ON)
+SET( CMAKE_EXPORT_COMPILE_COMMANDS ON )
 
 find_package( Protobuf REQUIRED )
 include_directories( ${Boost_INCLUDE_DIR} )

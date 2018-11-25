@@ -51,7 +51,12 @@ TEST_F(ODETest, ReadProto)
     std::string contents((std::istreambuf_iterator<char>(in)), 
 			 std::istreambuf_iterator<char>());
 
-    solve_ode(contents.c_str(), contents.length(), nullptr, nullptr);
+    unsigned int size; 
+    char* answer;
+    solve_ode(contents.c_str(), contents.length(), &answer, &size);
+
+    std::ofstream file("/home/renee/tmp/leigh_talk_out.proto", std::ios::binary);
+    file.write(answer, size);
 }
 
 
