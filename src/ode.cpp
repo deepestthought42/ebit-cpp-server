@@ -6,7 +6,7 @@
 #include <tuple>
 #include <vector>
 #include <limits>
-
+#include <algorithm>
 #include <boost/numeric/odeint.hpp>
 
 #include "ode.h"
@@ -27,20 +27,25 @@ typedef ::google::protobuf::RepeatedField<double> times;
 
 double *create_matrix(int dimension, const matrix &sparse) {
     double *result = new double[dimension * dimension];
+    
+    for (int i = 0; i < 2 * dimension; ++i) result[i] = 0.0;
     for (auto ptr = sparse.begin(); ptr < sparse.end(); ++ptr) {
 	// to keep it in sync with julia, decf 1 on array offsets
 	auto i = ptr->row() - 1;
 	auto j = ptr->column() - 1;
-	result[dimension * i + j] = ptr->value();
+	result[dimension * i + j] += ptr->value();
+	// std::cout << "R_{" << i << "," << j << "}: " << ptr->value() << std::endl;
     }
+    // std::cout << endl;
 
     return result;
 }
 
 state_type &create_init_values(int dimension, const initValue &init_values) {
     auto result =
-	new state_type(2 * dimension); // hopefully this initializes to zero
+	new state_type(2 * dimension); 
     for (auto ptr = init_values.begin(); ptr < init_values.end(); ++ptr) {
+	
 	auto i = ptr->index() - 1;
 	(*result)[i] = ptr->number_of_particles();
 	(*result)[dimension + i] = ptr->temperature_in_ev();
@@ -57,7 +62,7 @@ class ebit_ode {
     const double *source;
 
     const double *Xi_ij;
-    const double *dN_ij;
+    const double *eta_ij;
     const double *CX_ij;
 
     unsigned int no_dimensions;
@@ -75,50 +80,75 @@ public:
 	source = p.source_terms().data();
 	min_N = p.minimum_n();
 	Xi_ij = create_matrix(no_dimensions, p.inverted_collision_constant());
-	dN_ij = create_matrix(no_dimensions, p.rate_of_change_divided_by_n());
+	eta_ij = create_matrix(no_dimensions, p.rate_of_change_divided_by_n());
 	CX_ij = create_matrix(no_dimensions, p.dcharge_ex_divided_by_n_times_tau());
     }
     
     void operator()(const state_type &x, state_type &dxdt, const double) {
 	auto tau = [&](int i) { return std::max(0.0, x[no_dimensions + i]); };
+	auto N = [&](int i) { return std::max(0.0, x[i]); };
+
+	auto dN = [&](int i, double incf) { dxdt[i] += incf; };
+	auto dtau = [&](int i, double incf) { dxdt[i + no_dimensions] += incf; };
+
+	auto set_dN = [&](int i, double set_point) { dxdt[i] = set_point; };
+	auto set_dtau = [&](int i, double set_point) { dxdt[i + no_dimensions] = set_point; };
+
+	auto CX = [&](int i, int j) { return CX_ij[no_dimensions*i + j]; };
+	auto eta = [&](int i, int j) { return eta_ij[no_dimensions*i + j]; };
+	auto Xi = [&](int i, int j) { return Xi_ij[no_dimensions*i + j]; };
 
 	for (int i = 0; i < no_dimensions; ++i) {
 	    double R_esc_sum_j = 0.0;
 	    double R_exchange_sum_j = 0.0;
-	    dxdt[i] = source[i];
-	    dxdt[i + no_dimensions] = 0.0;
+	    
+	    set_dN(i, source[i]);
+	    set_dtau(i, 0.0);
 
 	    for (int j = 0; j < no_dimensions; ++j) {
 
-		if (x[i] > min_N && x[j] > min_N && tau(j) > 0.0 && tau(i) > 0.0) {
+		if (N(i) > min_N && N(j) > min_N && tau(j) > 0.0 && tau(i) > 0.0) {
 		    double f_ij = std::min((tau(i) * qV_e[j]) / (tau(j) * qV_e[i]), 1.0);
-		    double n_j = x[j] * qVe_over_Vol_x_kT[j] / tau(j);
+		    double n_j = N(j) * qVe_over_Vol_x_kT[j] / tau(j);
 		    double arg = (tau(i) / A[i] + tau(j) / A[j]);
-		    double Sigma = Xi_ij[i * no_dimensions + j] * n_j * pow(arg, -1.5);
+		    double Sigma = Xi(i,j) * n_j * pow(arg, -1.5);
 		    R_esc_sum_j += f_ij * Sigma;
 		    R_exchange_sum_j += f_ij * Sigma * (tau(j) - tau(i));
 
-		    dxdt[i] += CX_ij[i * no_dimensions + j] * x[j] * sqrt(tau(j));
+		    dN(i,  CX(i,j) * N(j) * sqrt(tau(j)));
 		}
 
-		dxdt[i] += dN_ij[i * no_dimensions + j] * x[j];
+		dN(i, eta(i,j) * N(j));
 	    }
 
-	    dxdt[no_dimensions + i] += R_exchange_sum_j;
-	    if (x[i] > min_N) {
+	    dtau(i, R_exchange_sum_j);
+	    if (N(i) > min_N) {
 		double R_esc = 3 / sqrt(3) * R_esc_sum_j * (tau(i) / qV_t[i]) *
 		    exp(-qV_t[i] / tau(i));
-		dxdt[no_dimensions + i] += (std::min(qV_e[i] / tau(i), 1.0) * phi[i]) -
-		    (tau(i) + qV_t[i]) * R_esc;
-		dxdt[i] -= x[i] * R_esc;
+		dtau(i, (std::min(qV_e[i] / tau(i), 1.0) * phi[i] ) - (tau(i) + qV_t[i]) * R_esc);
+		dN(i, -N(i) * R_esc);
 	    }
 	}
     }
 };
 
-struct write_state {
+
+void publish(const nuclides& m_nuclides, const state_type &x, double time){
+    std::cout << "time: " << time << " ";
+    for (auto n = m_nuclides.begin(); n < m_nuclides.end(); ++n) {
+	std::cout << ", N(A=" << n->a() << ",Z=" << n->z() << ",q=" << n->q() << "+): "
+		  << x[n->i() - 1];
+    }
+    std::cout << endl;
+}
+
+class write_state {
+    const nuclides& m_nuclides;
+public:
+    write_state(const nuclides& nuclides) : m_nuclides(nuclides) {}
+    
     void operator()(const state_type &x, double time) const {
-	std::cout << "time: " << time << "\t" << x[0] << "\t" << x[1] << "\n";
+	publish(m_nuclides, x, time);
     }
 };
 
@@ -167,6 +197,7 @@ public:
 	{}
 
     void operator()(const state_type &x, double t) {
+	// publish(m_nuclides, x, t);
 	auto saved = save_state(x, m_result, m_nuclides, 
 				m_no_dimensions, t,
 				m_times.Get(m_last_time_i));
@@ -191,7 +222,7 @@ EbitODEMessages::Result* do_solve(const ebit_ode &ode,
     auto x = create_init_values(diff_params.no_dimensions(),
 				diff_params.initial_values());
 
-    typedef runge_kutta_cash_karp54<state_type> error_stepper_type;
+    typedef runge_kutta_fehlberg78<state_type> error_stepper_type;
     typedef controlled_runge_kutta<error_stepper_type> controlled_stepper_type;
     controlled_stepper_type controlled_stepper;
 
@@ -203,10 +234,12 @@ EbitODEMessages::Result* do_solve(const ebit_ode &ode,
   
     integrate_adaptive(controlled_stepper, ode, x, 
 		       problem_params.time_span().start(), 
-		       problem_params.time_span().stop(), 1.0,
-		       push_back_state_and_time(*result, nuclides, 
-						diff_params.no_dimensions(),
-						solver_params.saveat()));
+		       problem_params.time_span().stop(), 1e-1
+		       //write_state(nuclides)
+		       ,push_back_state_and_time(*result, nuclides, 
+		       				diff_params.no_dimensions(),
+		       				solver_params.saveat())
+	);
 
 
     result->set_return_code(EbitODEMessages::Success);
