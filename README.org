@@ -1,0 +1,5 @@
+* EBIT ODE server
+This is a C++ implementation of a solver for number density and temperature evolution
+during charge breeding in an Electron Beam Ion Trap. Work in Progress.
+
+(c) Renee Klawitter 2018
