@@ -47,7 +47,7 @@ protected:
 // Tests that Foo does Xyz.
 TEST_F(ODETest, ReadProto) 
 {
-    std::ifstream in("/home/renee/tmp/leigh_talk.proto");
+    std::ifstream in("../../testdata/simple_test.kairos");
     std::string contents((std::istreambuf_iterator<char>(in)), 
 			 std::istreambuf_iterator<char>());
 
@@ -55,7 +55,7 @@ TEST_F(ODETest, ReadProto)
     char* answer;
     solve_ode(contents.c_str(), contents.length(), &answer, &size);
 
-    std::ofstream file("/home/renee/tmp/leigh_talk_out.proto", std::ios::binary);
+    std::ofstream file("../../testdata/simple_test.kairos", std::ios::binary); 
     file.write(answer, size);
 }
 
