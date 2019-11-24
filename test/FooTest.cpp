@@ -7,6 +7,7 @@
 #include <fstream>
 #include "gtest/gtest.h"
 #include "ode.h"
+#include "solver.h"
 
 /**
 Template unit test case fixture class. Make a copy of this.
@@ -55,7 +56,7 @@ TEST_F(ODETest, ReadProto)
     char* answer;
     solve_ode(contents.c_str(), contents.length(), &answer, &size);
 
-    std::ofstream file("../../testdata/simple_test.kairos", std::ios::binary); 
+    std::ofstream file("../../testdata/simple_test_out.kairos", std::ios::binary); 
     file.write(answer, size);
 }
 

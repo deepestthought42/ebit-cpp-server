@@ -15,6 +15,7 @@ add_library(
 	ebit_cpp_ode
 	SHARED
 	ode.cpp
+	solver.cpp
 	${PROTO_SRCS}
 )
 

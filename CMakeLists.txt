@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.5)
 project( ebit_cpp_ode )
 
 add_definitions( -std=c++14 -ggdb -O2 -Wno-padded)
+#add_definitions( -std=c++14 -O3 -Wno-padded)
 
 
 # Set BOOST_ROOT environment variable to point to your local Boost dir.
