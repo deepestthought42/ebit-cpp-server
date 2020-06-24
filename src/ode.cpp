@@ -1,3 +1,14 @@
+#if defined(SUNDIALS_EXTENDED_PRECISION)
+#define GSYM "Lg"
+#define ESYM "Le"
+#define FSYM "Lf"
+#else
+#define GSYM "g"
+#define ESYM "e"
+#define FSYM "f"
+#endif
+
+
 #include "ode.h"
 
 double *create_matrix(int dimension, const matrix &sparse) {
@@ -36,65 +47,69 @@ ebit_ode::ebit_ode(const EbitODEMessages::DiffEqParameters &p) {
   CX_ij = create_matrix(no_dimensions, p.dcharge_ex_divided_by_n_times_tau());
 }
 
-void ebit_ode::operator()(const state_type &x, state_type &dxdt, const double) {
-  auto Ntau = [&](int i) { return std::max(0.0, x[no_dimensions + i]); };
-  auto N = [&](int i) { return std::max(0.0, x[i]); };
+int f(realtype t, N_Vector y, N_Vector ydot, void *user_data) {
+  auto e = reinterpret_cast<ebit_ode*>(user_data);
+  auto Ntau = [&](int i) { return NV_Ith_S(y, e->no_dimensions + i); };
+  auto N = [&](int i) { return NV_Ith_S(y, i); };
 
-  auto dN = [&](int i, double incf) { dxdt[i] += incf; };
-  auto dNtau = [&](int i, double incf) { dxdt[i + no_dimensions] += incf; };
+  auto dN = [&](int i, double incf) { NV_Ith_S(ydot,i) += incf; };
+  auto dNtau = [&](int i, double incf) { NV_Ith_S(ydot, i + e->no_dimensions) += incf; };
 
-  auto set_dN = [&](int i, double set_point) { dxdt[i] = set_point; };
-  auto set_dNtau = [&](int i, double set_point) {
-    dxdt[i + no_dimensions] = set_point;
-  };
+  auto set_dN = [&](int i, double set_point) { NV_Ith_S(ydot, i) = set_point; };
+  auto set_dNtau = [&](int i, double set_point) { NV_Ith_S(ydot, i + e->no_dimensions) = set_point; };
 
-  auto CX = [&](int i, int j) { return CX_ij[no_dimensions * i + j]; };
-  auto eta = [&](int i, int j) { return eta_ij[no_dimensions * i + j]; };
-  auto Xi = [&](int i, int j) { return Xi_ij[no_dimensions * i + j]; };
+  auto CX = [&](int i, int j) { return e->CX_ij[e->no_dimensions * i + j]; };
+  auto eta = [&](int i, int j) { return e->eta_ij[e->no_dimensions * i + j]; };
+  auto Xi = [&](int i, int j) { return e->Xi_ij[e->no_dimensions * i + j]; };
 
-  for (int i = 0; i < no_dimensions; ++i) {
-    if (N(i) > min_N) {
-      tau[i] = Ntau(i) / (1.5 * N(i));
-      beta[i] = q[i] / tau[i];
+  for (int i = 0; i < e->no_dimensions; ++i) {
+    if (N(i) > e->min_N) {
+      e->tau[i] = Ntau(i) / (1.5 * N(i));
+      e->beta[i] = e->q[i] / e->tau[i];
     } else {
-      tau[i] = 0.0;
-      beta[i] = 1.0;
+      e->tau[i] = 0.0;
+      e->beta[i] = 1.0;
     }
   }
 
-  for (int i = 0; i < no_dimensions; ++i) {
+  for (int i = 0; i < e->no_dimensions; ++i) {
     double nu = 0.0;
     double R_esc_sum_j = 0.0;
     double R_exchange_sum_j = 0.0;
 
-    set_dN(i, source_n[i]);
-    set_dNtau(i, source_kt[i]);
+    set_dN(i, e->source_n[i]);
+    set_dNtau(i, e->source_kt[i]);
 
-    for (int j = 0; j < no_dimensions; ++j) {
+    for (int j = 0; j < e->no_dimensions; ++j) {
 
-      if (N(i) > min_N && N(j) > min_N && tau[j] > 0.0 && tau[i] > 0.0) {
+      if (N(i) > e->min_N && N(j) > e->min_N && e->tau[j] > 0.0 && e->tau[i] > 0.0) {
 
-        double f_ij = ion_ion_overlap(beta[i], beta[j]);
-        double n_j = N(j) * one_over_ioncloud_vol(beta[j]);
-        double arg = (tau[i] / A[i] + tau[j] / A[j]);
+        double f_ij = e->ion_ion_overlap(e->beta[i], e->beta[j]);
+        double n_j = N(j) * e->one_over_ioncloud_vol(e->beta[j]);
+        double arg = (e->tau[i] / e->A[i] + e->tau[j] / e->A[j]);
         double Sigma = Xi(i, j) * n_j * pow(arg, -1.5);
         nu += f_ij * Sigma;
-        R_exchange_sum_j += f_ij * Sigma * (tau[j] - tau[i]);
+        R_exchange_sum_j += f_ij * Sigma * (e->tau[j] - e->tau[i]);
 
-        dN(i, CX(i, j) * N(j) * sqrt(tau[j]));
-        dNtau(i, CX(i, j) * Ntau(j) * sqrt(tau[j]));
+        dN(i, CX(i, j) * N(j) * sqrt(e->tau[j]));
+        dNtau(i, CX(i, j) * Ntau(j) * sqrt(e->tau[j]));
       }
 
       dN(i, eta(i, j) * N(j));
       dNtau(i, eta(i, j) * Ntau(j));
     }
-
+ 
     dNtau(i, R_exchange_sum_j * N(i));
-    if (N(i) > min_N) {
-      double omega = qV_t[i] / tau[i];
+    if (N(i) > e->min_N) {
+      double omega = e->qV_t[i] / e->tau[i];
       double R_esc = (3 / sqrt(2)) * nu * exp(-omega) / omega;
       dN(i, -N(i) * R_esc);
-      dNtau(i, -N(i) * (qV_t[i] + tau[i]) * R_esc);
+      dNtau(i, -N(i) * (e->qV_t[i] + e->tau[i]) * R_esc);
     }
   }
+
+  return 0;
 }
+
+
+

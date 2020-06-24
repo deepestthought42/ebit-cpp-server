@@ -29,5 +29,7 @@ target_include_directories(
 target_link_libraries( 
   ebit_cpp_ode
   ${PROTOBUF_LIBRARY}
+  ${SUNDIALS_NVECSERIAL_LIB}
+  ${SUNDIALS_CVODES_LIB}
  )
 

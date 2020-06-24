@@ -1,6 +1,12 @@
 #ifndef ODE_H
 #define ODE_H
 
+#include <cvode/cvode.h>               /* prototypes for CVODE fcts., consts.  */
+#include <nvector/nvector_serial.h>    /* access to serial N_Vector            */
+#include <sunmatrix/sunmatrix_dense.h> /* access to dense SUNMatrix            */
+#include <sunlinsol/sunlinsol_dense.h> /* access to dense SUNLinearSolver      */
+#include <sundials/sundials_types.h>   /* defs. of realtype, sunindextype      */
+
 
 #include <algorithm>
 #include <cmath>
@@ -11,7 +17,6 @@
 #include <vector>
 #include <limits>
 #include <algorithm>
-#include <boost/numeric/odeint.hpp>
 
 #include "ode.h"
 #include "ebit-ode-messages.pb.h"
@@ -26,7 +31,7 @@ typedef ::google::protobuf::RepeatedPtrField<::EbitODEMessages::Nuclide> nuclide
 typedef ::google::protobuf::RepeatedField<double> times;
 
 
-class ebit_ode 
+struct ebit_ode 
 {
   const double *qV_e;
   const double *qV_t;
@@ -57,7 +62,10 @@ class ebit_ode
   public : ~ebit_ode() {}
   ebit_ode(const EbitODEMessages::DiffEqParameters &p);
 
-  void operator()(const state_type &x, state_type &dxdt, const double);
+  //void operator()(const state_type &x, state_type &dxdt, const double);
 };
 
+int f(realtype t, N_Vector y, N_Vector ydot, void *user_data);
+
 #endif //ODE_H
+

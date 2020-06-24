@@ -1,9 +1,18 @@
 #include "solver.h"
 
+#include <cvode/cvode.h>               /* prototypes for CVODE fcts., consts.  */
+#include <nvector/nvector_serial.h>    /* access to serial N_Vector            */
+#include <sunmatrix/sunmatrix_dense.h> /* access to dense SUNMatrix            */
+#include <sunlinsol/sunlinsol_dense.h> /* access to dense SUNLinearSolver      */
+#include <sundials/sundials_types.h>   /* defs. of realtype, sunindextype      */
+
 
 #include <iostream>
 
 using namespace std;
+
+
+
 
 
 void publish(const nuclides& m_nuclides, const state_type &x, double time){
@@ -60,54 +69,85 @@ EbitODEMessages::Result *prepare_result(const nuclides &nuclides) {
     return result;
 }
 
-state_type &create_init_values(int dimension, const initValue &init_values) {
-  auto result = new state_type(2 * dimension);
+void initial_values(int dimension, const initValue &init_values, N_Vector y, N_Vector abstol)
+{
+  
   for (auto ptr = init_values.begin(); ptr < init_values.end(); ++ptr) {
-
     auto i = ptr->index() - 1;
-    (*result)[i] = ptr->number_of_particles();
-    (*result)[dimension + i] = 1.5 * ptr->temperature_in_ev() * ptr->number_of_particles();
+    NV_Ith_S(abstol, i) = 1e-5;
+    NV_Ith_S(abstol, dimension + i) = 1e-3;
+    NV_Ith_S(y,i) = ptr->number_of_particles();
+    NV_Ith_S(y, dimension + i) = 1.5 * ptr->temperature_in_ev() * ptr->number_of_particles();
   }
-  return *result;
+}
+
+static int check_retval(void *returnvalue, const char *funcname, int opt)
+{
+  int *retval;
+
+  /* Check if SUNDIALS function returned NULL pointer - no memory allocated */
+  if (opt == 0 && returnvalue == NULL) {
+    fprintf(stderr, "\nSUNDIALS_ERROR: %s() failed - returned NULL pointer\n\n",
+	    funcname);
+    return(1); }
+
+  /* Check if retval < 0 */
+  else if (opt == 1) {
+    retval = (int *) returnvalue;
+    if (*retval < 0) {
+      fprintf(stderr, "\nSUNDIALS_ERROR: %s() failed with retval = %d\n\n",
+	      funcname, *retval);
+      return(1); }}
+
+  /* Check if function returned NULL pointer - no memory allocated */
+  else if (opt == 2 && returnvalue == NULL) {
+    fprintf(stderr, "\nMEMORY_ERROR: %s() failed - returned NULL pointer\n\n",
+	    funcname);
+    return(1); }
+
+  return(0);
 }
 
 
-EbitODEMessages::Result* do_solve(const ebit_ode &ode,
+EbitODEMessages::Result* do_solve(ebit_ode &ode,
 				  const EbitODEMessages::SolverParameters &solver_params,
 				  const EbitODEMessages::DiffEqParameters &diff_params,
 				  const EbitODEMessages::ProblemParameters& problem_params,
 				  const nuclides &nuclides) {
-    using namespace boost::numeric::odeint;
-
     std::cout << "Start solving problem of size: " << diff_params.no_dimensions()
 	      << std::endl;
 
-    auto saveat = solver_params.saveat();
-    auto x = create_init_values(diff_params.no_dimensions(),
-				diff_params.initial_values());
+    std::cout << "t1: " << problem_params.time_span().stop()
+	      << std::endl;
+    
+    auto y = N_VNew_Serial(diff_params.no_dimensions() * 2);
+    auto abstol = N_VNew_Serial(diff_params.no_dimensions() * 2);
+    realtype reltol = 1e-4;
+    
+    
+    auto dimension = diff_params.no_dimensions();
+    
+    initial_values(dimension, diff_params.initial_values(), y, abstol);
 
-    typedef runge_kutta_fehlberg78<state_type> error_stepper_type;
-    typedef controlled_runge_kutta<error_stepper_type> controlled_stepper_type;
-    controlled_stepper_type controlled_stepper;
+    auto cvode_mem = CVodeCreate(CV_BDF);
+    CVodeInit(cvode_mem, f, problem_params.time_span().start(), y);
+    CVodeSVtolerances(cvode_mem, reltol, abstol);
+
+    auto A = SUNDenseMatrix(dimension*2, dimension*2);
+    if(check_retval((void *)A, "SUNDenseMatrix", 0)) throw "err";
+    auto LS = SUNLinSol_Dense(y, A);
+    if(check_retval((void *)LS, "SUNLinSol_Dense", 0)) throw "SUNLinSol_Dense";
+    
+    CVodeSetLinearSolver(cvode_mem, LS, A);
+    auto iout = 0;
+    auto tout = problem_params.time_span().stop();
+    
+    realtype t;
+    CVodeSetUserData(cvode_mem, &ode);
+    auto retval = CVode(cvode_mem, 0.1, y, &t, CV_NORMAL);
 
     auto result = prepare_result(nuclides);
-
-    auto ptr = saveat.begin();
-    double last_time = *ptr++;
-
-  
-    integrate_adaptive(controlled_stepper, ode, x, 
-		       problem_params.time_span().start(), 
-		       problem_params.time_span().stop(), 1e-1
-		       //write_state(nuclides)
-		       ,push_back_state_and_time(*result, nuclides, 
-		       				diff_params.no_dimensions(),
-		       				solver_params.saveat())
-	);
-
-
     result->set_return_code(EbitODEMessages::Success);
-
     return result;
 }
 
