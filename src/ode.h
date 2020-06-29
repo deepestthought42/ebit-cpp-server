@@ -22,15 +22,6 @@
 #include "ebit-ode-messages.pb.h"
 
 
-typedef std::vector<double> state_type;
-
-typedef ::google::protobuf::RepeatedPtrField<::EbitODEMessages::MatrixValue> matrix;
-typedef ::google::protobuf::RepeatedPtrField<::EbitODEMessages::InitialValue> initValue;
-typedef ::google::protobuf::RepeatedPtrField<::EbitODEMessages::Nuclide> nuclides;
-
-typedef ::google::protobuf::RepeatedField<double> times;
-
-
 struct ebit_ode 
 {
   const double *qV_e;

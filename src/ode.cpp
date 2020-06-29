@@ -10,42 +10,21 @@
 
 
 #include "ode.h"
-
+/*
 double *create_matrix(int dimension, const matrix &sparse) {
   double *result = new double[dimension * dimension];
 
   for (int i = 0; i < 2 * dimension; ++i)
     result[i] = 0.0;
   for (auto ptr = sparse.begin(); ptr < sparse.end(); ++ptr) {
-    // to keep it in sync with julia, decf 1 on array offsets
     auto i = ptr->row() - 1;
     auto j = ptr->column() - 1;
     result[dimension * i + j] += ptr->value();
-    // std::cout << "R_{" << i << "," << j << "}: " << ptr->value() <<
-    // std::endl;
+    
   }
-  // std::cout << endl;
-
   return result;
 }
-
-
-ebit_ode::ebit_ode(const EbitODEMessages::DiffEqParameters &p) {
-  no_dimensions = p.no_dimensions();
-  tau = new double[p.no_dimensions()];
-  beta = new double[p.no_dimensions()];
-  qV_e = p.qve().data();
-  qV_t = p.qvt().data();
-  A = p.mass_number().data();
-  phi = p.spitzer_divided_by_overlap().data();
-  q = p.q().data();
-  source_n = p.source_terms_n().data();
-  source_kt = p.source_terms_kt().data();
-  min_N = p.minimum_n();
-  Xi_ij = create_matrix(no_dimensions, p.inverted_collision_constant());
-  eta_ij = create_matrix(no_dimensions, p.rate_of_change_divided_by_n());
-  CX_ij = create_matrix(no_dimensions, p.dcharge_ex_divided_by_n_times_tau());
-}
+*/
 
 int f(realtype t, N_Vector y, N_Vector ydot, void *user_data) {
   auto e = reinterpret_cast<ebit_ode*>(user_data);

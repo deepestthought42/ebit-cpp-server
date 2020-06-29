@@ -33,7 +33,6 @@ MESSAGE(STATUS "${SUNDIALS_LIBS}")
 
 
 
-find_package( Protobuf REQUIRED )
 
 # Download and unpack googletest at configure time
 configure_file(CMakeLists.txt.in googletest-download/CMakeLists.txt)
