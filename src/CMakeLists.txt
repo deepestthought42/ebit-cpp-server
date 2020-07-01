@@ -7,6 +7,7 @@ SET(CMAKE_CXX_COMPILER /usr/bin/c++)
 add_library(
 	ebit_cpp_ode
 	SHARED
+	message.cpp
 	ode.cpp
 	solver.cpp
 	capi.cpp

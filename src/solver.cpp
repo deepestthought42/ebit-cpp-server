@@ -56,7 +56,7 @@ static int check_retval(void *returnvalue, const char *funcname, int opt)
 }
 
 
-void do_solve(EBITChargeBreedingSimulation* simulation) 
+Result* do_solve(EBITChargeBreedingSimulation* simulation) 
 {
   auto diff_eq_params = simulation->diff_eq_parameters;
   auto dimension = diff_eq_params->no_dimensions;
@@ -83,14 +83,8 @@ void do_solve(EBITChargeBreedingSimulation* simulation)
   realtype t;
   CVodeSetUserData(cvode_mem, diff_eq_params);
   auto retval = CVode(cvode_mem, 0.1, y, &t, CV_NORMAL);
-
+  return NULL;
 }
 
-void solve_ode(EBITChargeBreedingSimulation* simulation, Result **result) 
-{
 
-  auto tmp_result = new Result();
-  *result = tmp_result;
-  do_solve(simulation);
-    
-}
+
