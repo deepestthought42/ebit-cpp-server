@@ -13,10 +13,8 @@ extern "C" {
   ValuesPerNuclide* create_ValuesPerNuclide(unsigned int);
   void free_ValuesPerNuclide(ValuesPerNuclide*);
   
-  void free_result(Result* answer);
-
-
   Result* solve_ode(const EBITChargeBreedingSimulation *simulation);
+  void free_result(Result* answer);
 }
 
 #endif /* _CAPI_H_ */
